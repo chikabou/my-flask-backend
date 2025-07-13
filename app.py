@@ -2,49 +2,39 @@ from flask import Flask, request, jsonify
 
 app = Flask(__name__)
 
-def SommeChiffres(X: int):
-    S = 0
-    while X != 0:
-        S = S + X % 10
-        X = X // 10
-    return S
-
-def Vérifier(X):
-    test = True
-    for i in range(X):
-        if X == SommeChiffres(i) + i:
-            test = False
-    return test
-
-def Chercher(N, M):
-    autonombres = ""
-    first = True
-    for i in range(N, M):
-        if Vérifier(i):
-            if first:
-                autonombres += str(i)
-                first = False
-            else:
-                autonombres += "-" + str(i)
-    return autonombres
-
-@app.route('/')
+@app.route("/")
 def home():
-    return "Flask server is running!"
+    return "PC Optimizer Backend Running"
 
-@app.route('/autonombres', methods=['POST'])
-def get_autonombres():
-    data = request.json
-    N = int(data.get("N"))
-    M = int(data.get("M"))
+@app.route("/analyze", methods=["POST"])
+def analyze():
+    data = request.get_json()
 
-    if 20 <= N <= 50 and N < M <= 100:
-        string = Chercher(N, M)
-        if string == "":
-            msg = f"Aucun Autonombre entre {N} et {M}"
-        else:
-            msg = f"Le(s) nombre(s) Autonombre(s) : {string}"
-    else:
-        msg = "Veuillez respecter : 20<=N<=50 et N<M<=100"
+    if not data:
+        return jsonify({"error": "No data received"}), 400
 
-    return jsonify({"message": msg})
+    suggestions = []
+
+    # Analyze RAM
+    if data.get("ram_gb", 0) < 4:
+        suggestions.append("Consider upgrading your RAM to at least 8GB.")
+
+    # Analyze Disk
+    if data.get("disk_usage_percent", 0) > 85:
+        suggestions.append("Free up disk space: Your disk usage is high.")
+
+    # Analyze CPU
+    cpu_brand = data.get("cpu", "").lower()
+    if any(old in cpu_brand for old in ["i3", "pentium", "celeron", "amd a4", "amd e1"]):
+        suggestions.append("Your CPU is relatively weak. Consider upgrading.")
+
+    # Analyze running processes
+    processes = data.get("running_processes", [])
+    if len(processes) > 100:
+        suggestions.append("Too many background apps running. Close unused programs.")
+
+    if not suggestions:
+        suggestions.append("Your system seems OK. No major optimizations needed.")
+
+    return jsonify({"actions": suggestions})
+
